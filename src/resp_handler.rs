@@ -1,13 +1,29 @@
-use std::fmt::{Display, Formatter};
+
 use std::io::Write;
 use std::net::TcpStream;
 use bytes::{Bytes, BytesMut};
-use Frame::{Array, BigNumber, BlobError, BlobString, Boolean, ChunkedString, Double, Hello, Map, Null, Number, Push, Set, SimpleError, SimpleString, VerbatimString};
+use Frame::Array;
+use Frame::BigNumber;
+use Frame::BlobError;
+use Frame::BlobString;
+use Frame::Boolean;
+use Frame::ChunkedString;
+use Frame::Double;
+use Frame::Hello;
+use Frame::Map;
+use Frame::Null;
+use Frame::Number;
+use Frame::Push;
+use Frame::Set;
+use Frame::SimpleError;
+use Frame::SimpleString;
+use Frame::VerbatimString;
 use redis_protocol::resp3::decode::complete::decode;
 use redis_protocol::resp3::encode::complete::encode_bytes;
 use redis_protocol::resp3::prelude::Frame;
 use redis_protocol::resp3::types::Attributes;
 use redis_protocol::types::RedisProtocolError;
+
 
 pub fn handle_query_requests(resp_command: [u8; 1024], mut stream: &mut TcpStream) {
     let bytes = Bytes::copy_from_slice(resp_command.as_slice());
@@ -91,7 +107,11 @@ fn handle_repl_command(frame_vector: Vec<Frame>,
     for token in frame_vector {
         match token {
             BlobString {data,attributes} => {
-                println!("data {:?}, attributes {:?}",data, attributes);
+                let byte_slice: &[u8] = &data;
+                let string = String::from_utf8_lossy(byte_slice);
+                if string == "SET" {
+                    //TODO
+                }
                 _ = write_message_to_stream(String::from("TOKEN PUSHED"),stream,&mut BytesMut::with_capacity(size))
             }
             BlobError {data,attributes} => {}
@@ -105,7 +125,9 @@ fn handle_repl_command(frame_vector: Vec<Frame>,
             VerbatimString { data, format, attributes } => {}
             Array { data,attributes} => {}
             Map { data,attributes } => {}
-            Set { data,attributes } => {}
+            Set { data,attributes } => {
+
+            }
             Push { data,attributes } => {}
             Hello { version, auth } => {
                 _= stream.write_all(&[version.to_byte()]);

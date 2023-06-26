@@ -1,6 +1,9 @@
 mod command_handler;
 mod resp_handler;
-mod vanilla_set_ops;
+mod membership;
+mod cache_ops;
+mod event_loop_ops;
+mod string_ops;
 
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
