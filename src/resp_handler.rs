@@ -1,6 +1,6 @@
-
 use std::io::Write;
 use std::net::TcpStream;
+use std::ops::Deref;
 use bytes::{Bytes, BytesMut};
 use Frame::Array;
 use Frame::BigNumber;
@@ -23,7 +23,7 @@ use redis_protocol::resp3::encode::complete::encode_bytes;
 use redis_protocol::resp3::prelude::Frame;
 use redis_protocol::resp3::types::Attributes;
 use redis_protocol::types::RedisProtocolError;
-
+use crate::cache_ops::map_ops::MAP_CACHE;
 
 pub fn handle_query_requests(resp_command: [u8; 1024], mut stream: &mut TcpStream) {
     let bytes = Bytes::copy_from_slice(resp_command.as_slice());
@@ -104,35 +104,30 @@ fn handle_repl_command(frame_vector: Vec<Frame>,
                        attributes_wrapped: Option<Attributes>,
                        size: usize,
                        stream: &mut TcpStream) {
-    for token in frame_vector {
-        match token {
-            BlobString {data,attributes} => {
-                let byte_slice: &[u8] = &data;
-                let string = String::from_utf8_lossy(byte_slice);
-                if string == "SET" {
-                    //TODO
-                }
-                _ = write_message_to_stream(String::from("TOKEN PUSHED"),stream,&mut BytesMut::with_capacity(size))
-            }
-            BlobError {data,attributes} => {}
-            SimpleString {data,attributes} => {}
-            SimpleError {data,attributes} => {}
-            Boolean {data,attributes} => {}
-            Null => {}
-            Number {data,attributes} => {}
-            Double {data,attributes} => {}
-            BigNumber {data,attributes} => {}
-            VerbatimString { data, format, attributes } => {}
-            Array { data,attributes} => {}
-            Map { data,attributes } => {}
-            Set { data,attributes } => {
+    let mut command_token_in_bytes: Vec<Bytes> = Vec::new();
+    for (i,token) in frame_vector.iter().enumerate() {
+        command_token_in_bytes.insert(i, Bytes::copy_from_slice(token.as_bytes().unwrap()));
+    }
+    let command = command_token_in_bytes.get(0).unwrap();
+    let command_string = String::from_utf8_lossy(command);
+    let result: String = execute_command(command_string.to_string(),command_token_in_bytes);
+    _ = write_message_to_stream(result,stream,&mut BytesMut::with_capacity(size))
+}
 
+fn execute_command(command: String, command_token_in_bytes: Vec<Bytes>) -> String {
+    match command.as_str() {
+        "SET" => {
+            if let storage_key  =  command_token_in_bytes.get(1) {
+                let key = storage_key.unwrap();
+
+            } else {
+                return String::from("INVALID SET STATEMENT");
             }
-            Push { data,attributes } => {}
-            Hello { version, auth } => {
-                _= stream.write_all(&[version.to_byte()]);
-            }
-            ChunkedString(_) => {}
+
+        },
+        "GET" => {
+            return String::from("VALUE RETRIEVED")
         }
+        _ => return String::from("Invalid Command")
     }
 }

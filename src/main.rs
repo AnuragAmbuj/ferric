@@ -16,20 +16,16 @@ use crate::resp_handler::handle_query_requests;
 fn main() {
     let port = get_port();
     println!("Starting a new redis server on port {}", port);
-    loop {
-        let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).unwrap();
-        thread::spawn(|| {
-            handle_new_connection(listener);
-        }).join().expect("Connection thread failed, kindly attempt reconnection!");
-    }
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).unwrap();
+    handle_new_connection(listener);
 }
 
 pub fn handle_new_connection(listener: TcpListener) {
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
+    for tcp_stream_connection in listener.incoming() {
+        match tcp_stream_connection {
+            Ok(conn_stream) => {
                 thread::spawn(|| {
-                    handle_request(stream)
+                    handle_request(conn_stream)
                 });
             }
             Err(e) => {

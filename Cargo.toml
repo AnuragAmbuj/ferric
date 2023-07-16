@@ -1,0 +1,16 @@
+[package]
+name = "ferric-redis"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+redis-protocol = "4.1.0"
+bytes = "1.4.0"
+kdtree = "0.7.0"
+structopt = "0.3.26"
+farmhash = "1.1.5"
+lazy_static = "1.4.0"
+tokio = { version = "1.28.2", features = ["full"] }
+strum = "0.25.0"
+strum_macros = "0.25.0"
