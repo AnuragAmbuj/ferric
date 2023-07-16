@@ -1,6 +1,7 @@
+use std::collections::HashMap;
 use std::io::Write;
 use std::net::TcpStream;
-use std::ops::Deref;
+use std::sync::Mutex;
 use bytes::{Bytes, BytesMut};
 use Frame::Array;
 use Frame::BigNumber;
@@ -23,7 +24,7 @@ use redis_protocol::resp3::encode::complete::encode_bytes;
 use redis_protocol::resp3::prelude::Frame;
 use redis_protocol::resp3::types::Attributes;
 use redis_protocol::types::RedisProtocolError;
-use crate::cache_ops::map_ops::MAP_CACHE;
+use crate::cache_ops::map_ops::MAP_CACHE_MUTEX;
 
 pub fn handle_query_requests(resp_command: [u8; 1024], mut stream: &mut TcpStream) {
     let bytes = Bytes::copy_from_slice(resp_command.as_slice());
@@ -115,19 +116,36 @@ fn handle_repl_command(frame_vector: Vec<Frame>,
 }
 
 fn execute_command(command: String, command_token_in_bytes: Vec<Bytes>) -> String {
+    let cache_mutex: &Mutex<HashMap<Bytes, Bytes>> = &MAP_CACHE_MUTEX;
     match command.as_str() {
         "SET" => {
-            if let storage_key  =  command_token_in_bytes.get(1) {
-                let key = storage_key.unwrap();
-
-            } else {
-                return String::from("INVALID SET STATEMENT");
+            if command_token_in_bytes.len() < 3 {
+                return String::from("INVALID SET COMMAND");
             }
 
+            if let storage_key  =  command_token_in_bytes.get(1) {
+                let key = storage_key.unwrap();
+                let storage_value = command_token_in_bytes.get(2).unwrap();
+                let mut cache = cache_mutex.lock().unwrap();
+                cache.insert(key.clone(), storage_value.clone());
+                drop(cache);
+                return String::from("KEY STORED");
+            }
+            String::from("INVALID SET COMMAND")
         },
         "GET" => {
-            return String::from("VALUE RETRIEVED")
+            let cache_mutex: &Mutex<HashMap<Bytes, Bytes>> = &MAP_CACHE_MUTEX;
+            if command_token_in_bytes.len() < 2 {
+                return String::from("INVALID GET COMMAND");
+            }
+            let cache  = cache_mutex.lock().unwrap();
+            let key = command_token_in_bytes.get(1).unwrap();
+            let value = cache.get(key);
+            if value.is_none() {
+                return String::from("No such value");
+            }
+            return String::from_utf8_lossy(value.unwrap()).to_string();
         }
-        _ => return String::from("Invalid Command")
+        _ => String::from("This operation is not yet supported!")
     }
 }
